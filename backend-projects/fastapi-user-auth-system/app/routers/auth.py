@@ -5,7 +5,8 @@ from app.models.user import User
 from app.db.database import get_db
 from app.utils.hashing import hash_password, verify_password
 from app.utils.jwt_handler import create_access_token
-from app.schemas.user import UserLogin
+from app.schemas.user import UserLogin, UserUpdate
+from app.core.security import get_current_user
 
 router = APIRouter()
 
@@ -51,6 +52,26 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     access_token = create_access_token({"sub": db_user.email})
 
     return {"access_token"  : access_token, "token_type": "bearer"}
+
+
+@router.put("/profile", response_model=UserResponse)
+def update_profile(
+    update_data : UserUpdate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    
+    if update_data.email:
+        current_user.email = update_data.email
+
+    if update_data.password:
+        current_user.hashed_password = hash_password(update_data.password)
+
+    db.commit()
+    db.refresh(current_user)
+
+    return current_user
+
 
 
 @router.get("/ping")
